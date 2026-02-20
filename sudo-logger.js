@@ -107,10 +107,18 @@ async function pullFromGitHub() {
   const git = simpleGit(CONFIG.REPO_PATH);
   
   try {
-    if (existsSync(join(CONFIG.REPO_PATH, '.git'))) {
-      await git.pull('origin', 'main', ['--rebase']);
-      console.log('✅ Pulled latest changes');
+    // Clone if repo doesn't exist locally
+    if (!existsSync(join(CONFIG.REPO_PATH, '.git'))) {
+      console.log('📦 Cloning repository...');
+      const remoteUrl = `https://${CONFIG.GITHUB_TOKEN}@github.com/${CONFIG.GITHUB_REPO}.git`;
+      await simpleGit().clone(remoteUrl, CONFIG.REPO_PATH);
+      console.log('✅ Repository cloned');
+      return true;
     }
+    
+    // Pull latest changes
+    await git.pull('origin', 'main', ['--rebase']);
+    console.log('✅ Pulled latest changes');
     return true;
   } catch (error) {
     console.error('❌ GitHub pull failed:', error.message);
@@ -242,23 +250,15 @@ async function pushToGitHub() {
   const git = simpleGit(CONFIG.REPO_PATH);
 
   try {
-    if (!existsSync(join(CONFIG.REPO_PATH, '.git'))) {
-      await git.init();
-      await git.addConfig('user.name', CONFIG.GITHUB_USER || 'Sudo Logger');
-      await git.addConfig('user.email', `${CONFIG.GITHUB_USER}@users.noreply.github.com`);
-
-      const remoteUrl = `https://${CONFIG.GITHUB_TOKEN}@github.com/${CONFIG.GITHUB_REPO}.git`;
-      await git.addRemote('origin', remoteUrl);
-
-      writeFileSync(join(CONFIG.REPO_PATH, 'README.md'),
-        '# Encrypted Sudo Audit Log\n\nThis repository contains encrypted sudo command logs.\nView at: https://' + 
-        CONFIG.GITHUB_USER + '.github.io/' + CONFIG.GITHUB_REPO.split('/')[1] + '/\n');
-      await git.add('.');
-      await git.commit('Initial commit');
-      await git.push('origin', 'main', ['--set-upstream']);
-    }
-
     await git.add([CONFIG.LOG_FILE, 'index.html', '.nojekyll']);
+    
+    // Check if there are changes to commit
+    const status = await git.status();
+    if (status.files.length === 0) {
+      console.log('✅ No changes to push');
+      return true;
+    }
+    
     await git.commit(`Log entry: ${new Date().toISOString()}`);
     await git.push('origin', 'main');
 
