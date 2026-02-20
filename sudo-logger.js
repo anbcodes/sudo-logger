@@ -112,6 +112,11 @@ async function pullFromGitHub() {
       console.log('📦 Cloning repository...');
       const remoteUrl = `https://${CONFIG.GITHUB_TOKEN}@github.com/${CONFIG.GITHUB_REPO}.git`;
       await simpleGit().clone(remoteUrl, CONFIG.REPO_PATH);
+      
+      // Set git config after cloning
+      await git.addConfig('user.name', CONFIG.GITHUB_USER || 'Sudo Logger');
+      await git.addConfig('user.email', `${CONFIG.GITHUB_USER}@users.noreply.github.com`);
+      
       console.log('✅ Repository cloned');
       return true;
     }
