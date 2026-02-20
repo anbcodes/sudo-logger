@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawn } from 'child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync, copyFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, copyFileSync, rmSync } from 'fs';
 import { createCipheriv, createDecipheriv, randomBytes, pbkdf2 } from 'crypto';
 import { promisify } from 'util';
 import { join, dirname } from 'path';
@@ -110,6 +110,13 @@ async function pullFromGitHub() {
     // Clone if repo doesn't exist locally
     if (!existsSync(join(CONFIG.REPO_PATH, '.git'))) {
       console.log('📦 Cloning repository...');
+      
+      // Ensure parent directory exists
+      const parentDir = dirname(CONFIG.REPO_PATH);
+      if (!existsSync(parentDir)) {
+        mkdirSync(parentDir, { recursive: true });
+      }
+      
       const remoteUrl = `https://${CONFIG.GITHUB_TOKEN}@github.com/${CONFIG.GITHUB_REPO}.git`;
       await simpleGit().clone(remoteUrl, CONFIG.REPO_PATH);
       
@@ -290,6 +297,46 @@ async function confirmCommand(command) {
   });
 }
 
+async function confirmReset() {
+  const rl = createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+  
+  return new Promise((resolve) => {
+    console.log('\n⚠️  WARNING: This will DELETE the local audit logs directory!');
+    console.log(`   Path: ${CONFIG.REPO_PATH}`);
+    console.log('   This cannot be undone. Remote logs on GitHub will remain intact.');
+    rl.question('\nType "DELETE" to confirm: ', (answer) => {
+      rl.close();
+      resolve(answer === 'DELETE');
+    });
+  });
+}
+
+async function resetAuditDirectory() {
+  if (!existsSync(CONFIG.REPO_PATH)) {
+    console.log('✅ Audit directory does not exist. Nothing to remove.');
+    return;
+  }
+  
+  const confirmed = await confirmReset();
+  if (!confirmed) {
+    console.log('❌ Reset cancelled');
+    process.exit(0);
+  }
+  
+  try {
+    rmSync(CONFIG.REPO_PATH, { recursive: true, force: true });
+    console.log('✅ Audit directory removed successfully');
+    console.log('   Run a sudo command to re-clone from GitHub');
+    process.exit(0);
+  } catch (error) {
+    console.error('❌ Failed to remove directory:', error.message);
+    process.exit(1);
+  }
+}
+
 function execSudo(args) {
   // Replace current process with sudo (similar to bash exec)
   spawn('sudo', args, {
@@ -306,9 +353,16 @@ function execSudo(args) {
 
 async function main() {
   const args = process.argv.slice(2);
+  
+  // Check for reset flag
+  if (args[0] === '--reset' || args[0] === '--clear') {
+    await resetAuditDirectory();
+    return;
+  }
 
   if (args.length === 0) {
     console.log('Usage: node sudo-logger.js <command> [args...]');
+    console.log('       node sudo-logger.js --reset  (Remove local audit directory)');
     console.log('Example: node sudo-logger.js apt update');
     process.exit(1);
   }
