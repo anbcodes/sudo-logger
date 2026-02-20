@@ -1,0 +1,13 @@
+{
+  "name": "sudo-audit-logger",
+  "version": "1.0.0",
+  "description": "Encrypted sudo command logger with GitHub Pages integration",
+  "main": "sudo-logger.js",
+  "type": "module",
+  "keywords": ["sudo", "audit", "logging", "encryption"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "simple-git": "^3.22.0"
+  }
+}

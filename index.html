@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Encrypted Sudo Audit Logs</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            font-size: clamp(1.5em, 5vw, 2.5em);
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: clamp(0.9em, 3vw, 1.1em);
+            opacity: 0.9;
+        }
+        
+        .password-box {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+        
+        .password-box h2 {
+            margin-bottom: 15px;
+            color: #333;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            font-size: clamp(1.2em, 4vw, 1.5em);
+        }
+        
+        .forget-btn {
+            padding: 8px 15px;
+            background: #dc3545;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+        
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        @media (min-width: 768px) {
+            .input-group {
+                flex-direction: row;
+            }
+        }
+        
+        input[type="password"], input[type="text"] {
+            flex: 1;
+            min-width: 0;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="password"]:focus, input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        button {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            white-space: nowrap;
+            width: 100%;
+        }
+        
+        @media (min-width: 768px) {
+            button {
+                width: auto;
+            }
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            border-left: 4px solid #c33;
+        }
+        
+        .success {
+            background: #efe;
+            color: #3c3;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            border-left: 4px solid #3c3;
+        }
+        
+        .logs-container {
+            display: none;
+        }
+        
+        .logs-container.visible {
+            display: block;
+        }
+        
+        .log-entry {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            transition: all 0.2s;
+            cursor: pointer;
+            -webkit-tap-highlight-color: rgba(0,0,0,0.1);
+        }
+        
+        .log-entry:hover {
+            box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+        }
+        
+        .log-entry.expanded {
+            cursor: default;
+        }
+        
+        .log-header {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .log-header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+            min-width: 0;
+            flex-wrap: wrap;
+        }
+        
+        @media (max-width: 767px) {
+            .log-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .log-header-left {
+                order: 1;
+            }
+            
+            .log-time {
+                order: 0;
+                width: 100%;
+            }
+            
+            .expand-icon {
+                position: absolute;
+                top: 15px;
+                right: 15px;
+            }
+        }
+        
+        .log-id {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.85em;
+            flex-shrink: 0;
+        }
+        
+        .log-time {
+            color: #999;
+            font-size: clamp(0.75em, 2vw, 0.85em);
+            flex-shrink: 0;
+        }
+        
+        .log-command-preview {
+            font-family: 'Courier New', monospace;
+            color: #333;
+            font-size: clamp(0.8em, 2.5vw, 0.95em);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .log-details-section {
+            display: none;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid #f0f0f0;
+        }
+        
+        .log-entry.expanded .log-details-section {
+            display: block;
+        }
+        
+        .log-command {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 5px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: clamp(0.85em, 2.5vw, 1.05em);
+            color: #333;
+            border-left: 4px solid #667eea;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .log-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .log-detail {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .log-detail-label {
+            font-size: 0.85em;
+            color: #888;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        
+        .log-detail-value {
+            color: #333;
+            font-weight: 500;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .exit-code {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+        
+        .exit-code.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .exit-code.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .expand-icon {
+            color: #999;
+            font-size: 0.9em;
+            transition: transform 0.2s;
+        }
+        
+        .log-entry.expanded .expand-icon {
+            transform: rotate(180deg);
+        }
+        
+        .stats {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            display: none;
+        }
+        
+        .stats.visible {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+        }
+        
+        .stat {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: white;
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 Encrypted Sudo Audit Logs</h1>
+            <p>Decrypted locally in your browser</p>
+        </div>
+        
+        <div class="password-box">
+            <h2>
+                <span>Enter Decryption Password</span>
+                <button class="forget-btn" onclick="forgetPassword()" id="forgetBtn" style="display:none">🗑️ Forget Password</button>
+            </h2>
+            <div class="input-group">
+                <input type="password" id="password" placeholder="Encryption password" />
+                <input type="text" id="jsonUrl" placeholder="audit-log.json (leave blank for default)" />
+                <button onclick="loadAndDecrypt()">🔓 Decrypt Logs</button>
+            </div>
+            <div id="message"></div>
+        </div>
+        
+        <div class="stats" id="stats"></div>
+        
+        <div class="logs-container" id="logsContainer"></div>
+    </div>
+    
+    <script>
+        const STORAGE_KEY = 'sudo_audit_password';
+        
+        // Load saved password on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedPassword = localStorage.getItem(STORAGE_KEY);
+            if (savedPassword) {
+                document.getElementById('password').value = savedPassword;
+                document.getElementById('forgetBtn').style.display = 'block';
+                document.getElementById('message').innerHTML = '<div class="success">🔑 Password loaded from storage</div>';
+                
+                // Auto-load logs
+                setTimeout(() => {
+                    loadAndDecrypt();
+                }, 500);
+            }
+        });
+        
+        function savePassword(password) {
+            localStorage.setItem(STORAGE_KEY, password);
+            document.getElementById('forgetBtn').style.display = 'block';
+        }
+        
+        function forgetPassword() {
+            if (confirm('Are you sure you want to forget the saved password?')) {
+                localStorage.removeItem(STORAGE_KEY);
+                document.getElementById('password').value = '';
+                document.getElementById('forgetBtn').style.display = 'none';
+                document.getElementById('message').innerHTML = '<div class="success">🗑️ Password forgotten</div>';
+                document.getElementById('logsContainer').classList.remove('visible');
+                document.getElementById('stats').classList.remove('visible');
+            }
+        }
+        
+        async function deriveKey(password, salt) {
+            const encoder = new TextEncoder();
+            const passwordBuffer = encoder.encode(password);
+            
+            // Import password as key material
+            const keyMaterial = await crypto.subtle.importKey(
+                'raw',
+                passwordBuffer,
+                { name: 'PBKDF2' },
+                false,
+                ['deriveBits', 'deriveKey']
+            );
+            
+            // Derive key using PBKDF2 (similar to scrypt)
+            return await crypto.subtle.deriveKey(
+                {
+                    name: 'PBKDF2',
+                    salt: salt,
+                    iterations: 100000,
+                    hash: 'SHA-256'
+                },
+                keyMaterial,
+                { name: 'AES-GCM', length: 256 },
+                false,
+                ['decrypt']
+            );
+        }
+        
+        async function decrypt(encryptedText, password) {
+            try {
+                const buffer = Uint8Array.from(atob(encryptedText), c => c.charCodeAt(0));
+                
+                const salt = buffer.slice(0, 16);
+                const iv = buffer.slice(16, 32);
+                const authTag = buffer.slice(32, 48);
+                const encrypted = buffer.slice(48);
+                
+                // Combine encrypted data with auth tag (required for AES-GCM)
+                const encryptedWithTag = new Uint8Array(encrypted.length + authTag.length);
+                encryptedWithTag.set(encrypted);
+                encryptedWithTag.set(authTag, encrypted.length);
+                
+                const key = await deriveKey(password, salt);
+                
+                const decrypted = await crypto.subtle.decrypt(
+                    {
+                        name: 'AES-GCM',
+                        iv: iv,
+                        tagLength: 128
+                    },
+                    key,
+                    encryptedWithTag
+                );
+                
+                const decoder = new TextDecoder();
+                return decoder.decode(decrypted);
+            } catch (e) {
+                throw new Error('Decryption failed - wrong password or corrupted data');
+            }
+        }
+        
+        function formatDateTime(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+        
+        function displayLogs(logs) {
+            const container = document.getElementById('logsContainer');
+            const statsContainer = document.getElementById('stats');
+            
+            // Calculate stats
+            const totalCommands = logs.length;
+            const successCount = logs.filter(l => l.entry.exitCode === 0).length;
+            const failureCount = totalCommands - successCount;
+            
+            statsContainer.innerHTML = `
+                <div class="stat">
+                    <div class="stat-value">${totalCommands}</div>
+                    <div class="stat-label">Total Commands</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">${successCount}</div>
+                    <div class="stat-label">Successful</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">${failureCount}</div>
+                    <div class="stat-label">Failed</div>
+                </div>
+            `;
+            statsContainer.classList.add('visible');
+            
+            container.innerHTML = logs.map(log => {
+                const entry = log.entry;
+                const exitCodeClass = entry.exitCode === 0 ? 'success' : 'error';
+                const exitIcon = entry.exitCode === 0 ? '✓' : '✗';
+                
+                return `
+                    <div class="log-entry" onclick="toggleLog(${log.id})">
+                        <div class="log-header">
+                            <div class="log-header-left">
+                                <span class="log-id">#${log.id}</span>
+                                <span class="log-command-preview">$ sudo ${entry.command}</span>
+                                <span class="exit-code ${exitCodeClass}">${exitIcon} ${entry.exitCode}</span>
+                            </div>
+                            <span class="log-time">${formatDateTime(entry.timestamp)}</span>
+                            <span class="expand-icon">▼</span>
+                        </div>
+                        
+                        <div class="log-details-section">
+                            <div class="log-command">
+                                $ sudo ${entry.command}
+                            </div>
+                            
+                            <div class="log-details">
+                                <div class="log-detail">
+                                    <span class="log-detail-label">User</span>
+                                    <span class="log-detail-value">${entry.user}@${entry.hostname}</span>
+                                </div>
+                                <div class="log-detail">
+                                    <span class="log-detail-label">Working Directory</span>
+                                    <span class="log-detail-value">${entry.cwd}</span>
+                                </div>
+                                <div class="log-detail">
+                                    <span class="log-detail-label">Exit Code</span>
+                                    <span class="exit-code ${exitCodeClass}">${entry.exitCode}</span>
+                                </div>
+                            </div>
+                            
+                            ${entry.output ? `
+                                <div class="log-detail" style="margin-top: 15px;">
+                                    <span class="log-detail-label">Output</span>
+                                    <pre style="background: #f8f9fa; padding: 10px; border-radius: 5px; overflow-x: auto;">${entry.output}</pre>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            container.classList.add('visible');
+        }
+        
+        function toggleLog(id) {
+            const logEntry = event.currentTarget;
+            logEntry.classList.toggle('expanded');
+            event.stopPropagation();
+        }
+        
+        async function loadAndDecrypt() {
+            const password = document.getElementById('password').value;
+            const jsonUrl = document.getElementById('jsonUrl').value || 'audit-log.json';
+            const messageDiv = document.getElementById('message');
+            
+            if (!password) {
+                messageDiv.innerHTML = '<div class="error">❌ Please enter a password</div>';
+                return;
+            }
+            
+            messageDiv.innerHTML = '<div class="loading">⏳ Loading and decrypting logs...</div>';
+            
+            try {
+                // Fetch the JSON file
+                const response = await fetch(jsonUrl);
+                if (!response.ok) {
+                    throw new Error(`Failed to load ${jsonUrl}: ${response.statusText}`);
+                }
+                
+                const logs = await response.json();
+                
+                if (!Array.isArray(logs) || logs.length === 0) {
+                    messageDiv.innerHTML = '<div class="error">❌ No logs found in file</div>';
+                    return;
+                }
+                
+                // Decrypt all logs
+                const decryptedLogs = [];
+                for (const log of logs) {
+                    try {
+                        const decrypted = await decrypt(log.encrypted, password);
+                        const entry = JSON.parse(decrypted);
+                        decryptedLogs.push({ id: log.id, entry });
+                    } catch (e) {
+                        console.error(`Failed to decrypt log #${log.id}:`, e);
+                        throw new Error('Wrong password or corrupted data');
+                    }
+                }
+                
+                // Save password to localStorage on successful decryption
+                savePassword(password);
+                
+                messageDiv.innerHTML = `<div class="success">✅ Successfully decrypted ${decryptedLogs.length} log entries (password saved)</div>`;
+                displayLogs(decryptedLogs);
+                
+            } catch (error) {
+                messageDiv.innerHTML = `<div class="error">❌ ${error.message}</div>`;
+                console.error(error);
+            }
+        }
+        
+        // Allow Enter key to submit
+        document.getElementById('password').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') loadAndDecrypt();
+        });
+        
+        document.getElementById('jsonUrl').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') loadAndDecrypt();
+        });
+    </script>
+</body>
+</html>
