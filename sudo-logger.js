@@ -104,8 +104,6 @@ async function copyHtmlViewer() {
 }
 
 async function pullFromGitHub() {
-  const git = simpleGit(CONFIG.REPO_PATH);
-  
   try {
     // Clone if repo doesn't exist locally
     if (!existsSync(join(CONFIG.REPO_PATH, '.git'))) {
@@ -121,6 +119,7 @@ async function pullFromGitHub() {
       await simpleGit().clone(remoteUrl, CONFIG.REPO_PATH);
       
       // Set git config after cloning
+      const git = simpleGit(CONFIG.REPO_PATH);
       await git.addConfig('user.name', CONFIG.GITHUB_USER || 'Sudo Logger');
       await git.addConfig('user.email', `${CONFIG.GITHUB_USER}@users.noreply.github.com`);
       
@@ -129,6 +128,7 @@ async function pullFromGitHub() {
     }
     
     // Pull latest changes
+    const git = simpleGit(CONFIG.REPO_PATH);
     await git.pull('origin', 'main', ['--rebase']);
     console.log('✅ Pulled latest changes');
     return true;
