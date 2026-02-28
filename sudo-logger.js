@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/etc/sudo-logger/node/bin/node
 import { spawn } from 'child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, copyFileSync, rmSync } from 'fs';
 import { createCipheriv, createDecipheriv, randomBytes, pbkdf2 } from 'crypto';
